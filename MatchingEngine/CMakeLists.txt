@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.10)
-PROJECT(MatchingEngine)
+PROJECT(NimbusExchange)
 
-file(GLOB MATCHINGENGINE_SRCS "*.cpp")
-ADD_EXECUTABLE (MatchingEngine ${MATCHINGENGINE_SRCS})
+file(GLOB MATCHINGENGINE_SRCS "*.cpp" "*.h")
+ADD_EXECUTABLE (NimbusExchange ${MATCHINGENGINE_SRCS})
