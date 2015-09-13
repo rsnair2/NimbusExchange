@@ -21,7 +21,10 @@
  * 	back into the pool. 
  **/
 void IOBlockReader::run() {
+	stateMutex.lock();
 	state = IOBlockReader::Reading;
+	stateMutex.unlock();
+
 	td = thread(&IOBlockReader::_run, this);
 }
 
@@ -36,9 +39,15 @@ IOBlockReader::Block * IOBlockReader::readBlock() {
 		bufferedInputQueueMutex.lock();
 
 		// done reading and buffer has been emptied
-		if(bufferedInputQueue.size() == 0 && state == IOBlockReader::Done) {
+		if(bufferedInputQueue.size() == 0) {
+			stateMutex.lock();
+			if(state == IOBlockReader::Done) {
+				stateMutex.unlock();
+				bufferedInputQueueMutex.unlock();
+				return NULL;
+			}
+			stateMutex.unlock();
 			bufferedInputQueueMutex.unlock();
-			return NULL;
 		}
 		else if(bufferedInputQueue.size() == 0) {
 			bufferedInputQueueMutex.unlock();
@@ -69,7 +78,11 @@ void IOBlockReader::releaseBlock(IOBlockReader::Block * block) {
 IOBlockReader::IOBlockReader(string filename) {
 	configBlockSize = defaultBlockSize;
 	configMaxBlocksInQueue = defaultMaxBlocksInQueue;
+
+	stateMutex.lock();
 	state = IOBlockReader::Idle;
+	stateMutex.unlock();
+
 	filename = filename;
 	infile.open(filename);
 
@@ -125,5 +138,8 @@ void IOBlockReader::_run() {
 		bufferedInputQueueMutex.unlock();
 	}
 
+	// this only happens when everything is on the queue!
+	stateMutex.lock();
 	state = IOBlockReader::Done;
+	stateMutex.unlock();
 }

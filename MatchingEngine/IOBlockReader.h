@@ -59,6 +59,8 @@ private:
 	queue<Block *> freeBlocksList;
 	mutex freeBlocksListMutex;
 
+	mutex stateMutex;
+
 	// default configurations
 	static const unsigned int defaultBlockSize = 4096;
 	static const unsigned int defaultMaxBlocksInQueue = 10;
