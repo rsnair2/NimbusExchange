@@ -1,8 +1,13 @@
 #include "BufferedLineReader.h"
+#include <string.h>
 
 BufferedLineReader::BufferedLineReader(string filename) {
 	filename = filename;
 	blockReader = new IOBlockReader(filename);
+	stateMutex.lock();
+	state = BufferedLineReader::Idle;
+	stateMutex.unlock();
+	linesBuffered = 0;
 	blockReader->run();
 }
 
@@ -19,6 +24,13 @@ string BufferedLineReader::readLine() {
 	while(true) {
 		bufferedLinesQueueMutex.lock();
 		if(bufferedLinesQueue.size() == 0) {
+			stateMutex.lock();
+			if(state == BufferedLineReader::Done) {
+				stateMutex.unlock();
+				bufferedLinesQueueMutex.unlock();
+				return "";
+			}
+			stateMutex.unlock();
 			bufferedLinesQueueMutex.unlock();
 		}
 		else 
@@ -26,46 +38,63 @@ string BufferedLineReader::readLine() {
 	}	
 	string res = bufferedLinesQueue.front();
 	bufferedLinesQueue.pop();
+	--linesBuffered;
 	bufferedLinesQueueMutex.unlock();
-	return "asd";
+	return res;
+}
+
+const char * find_substr(const char * start, const char * end, char delim) {
+	const char * curr = start;
+	while(curr <= end) {
+		if(start[0] == delim) return start;
+		++curr;
+	}
+	return NULL;
 }
 
 void BufferedLineReader::_run() {
 	string prev_line = "";
 
+	stateMutex.lock();
+	state = BufferedLineReader::Reading;
+	stateMutex.unlock();
+
 	while(true) {
 		IOBlockReader::Block * block = blockReader->readBlock();
-		if(block == NULL) return;
-		char * const buf = block->buffer;
 
-		int prev_newline = 0;
-		int next_newline = -1;
-		for(int idx = 0; idx < block->numberOfBytes; idx++) {
-			while(buf[idx] != '\n' && idx < block->numberOfBytes - 1)
-				++idx;
+		if(block == NULL) {	
+			if(prev_line != "") {
+				bufferedLinesQueueMutex.lock();
+				bufferedLinesQueue.push(prev_line);
+				++linesBuffered;
+				bufferedLinesQueueMutex.unlock();
+			};
 
-			prev_newline = next_newline + 1;
-			next_newline = idx;
+			stateMutex.lock();
+			state = BufferedLineReader::Done;
+			stateMutex.unlock();
+			return;
+		}
+		
+		const char * buf = block->buffer;
+		const char * end = buf + block->numberOfBytes;
+		string prev = "";
 
-			string line;
+		while(buf != end) {
+			const char * next = find_substr(buf, end, '\n');
 
-			if(prev_newline == 0)
-				line = prev_line + string(buf + prev_newline, next_newline - prev_newline + 1);
-			else if(idx == block->numberOfBytes - 1 && buf[idx] != '\n') {
-				prev_line += string(buf + prev_newline, next_newline - prev_newline + 1);
+			if(next == NULL) {
+				prev_line += string(buf, (int)(end - buf));
 				break;
 			}
-			else 
-				line = string(buf + prev_newline, next_newline - prev_newline + 1);
-
+			string line = string(buf, (int)(next - buf));
 			bufferedLinesQueueMutex.lock();
 			bufferedLinesQueue.push(line);
+			++linesBuffered;
 			bufferedLinesQueueMutex.unlock();
+			buf = next;
 		}
 
 		blockReader->releaseBlock(block);
-		if(blockReader->state == IOBlockReader::Done && bufferedLinesQueue.size() == 0) {
-			return;
-		}	
 	}
 }

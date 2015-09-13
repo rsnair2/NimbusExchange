@@ -18,11 +18,18 @@ public:
 
 	string filename;
 
+	enum State {Reading, Done, Idle};
+	State state;
+
 private:
 	queue<string> bufferedLinesQueue;
 	mutex bufferedLinesQueueMutex;
 
+	int linesBuffered;
+
 	ifstream infile;
+
+	mutex stateMutex;
 
 	IOBlockReader * blockReader;
 	thread td;
