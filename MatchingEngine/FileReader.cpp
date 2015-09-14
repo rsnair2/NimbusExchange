@@ -83,7 +83,8 @@ FileReader::FileReader(string filename) {
 }	
 
 FileReader::~FileReader() {
-	td.join();
+	if(td.joinable())
+		td.join();
 	infile.close();
 
 	// td is no longer active after td.join
