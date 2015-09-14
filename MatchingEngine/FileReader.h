@@ -60,9 +60,9 @@ private:
 	mutex freeMemoryBlocksListMutex;
 
 	// default configurations
-	// default cache size for buffer = 400 kB
+	// default cache size for buffer = 4000 kB
 	static const unsigned int defaultBlockSize = 4096;
-	static const unsigned int defaultMaxBlocksInQueue = 100;
+	static const unsigned int defaultMaxBlocksInQueue = 1000;
 
 	// state variables
 	enum State {Reading, Done, Idle};
