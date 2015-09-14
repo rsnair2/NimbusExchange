@@ -237,7 +237,7 @@ using namespace std;
 
 int main(int argc, char * argv[]) {
 	outfile.open(outputfile_name);
-	MarketInstructionIterator mii("/Users/rsnair2/Studio/MatchingEngine/data/small_orders.txt");
+	MarketInstructionIterator mii(argv[1]);
 	MarketInstruction * mi;
 	while((mi = mii.getNextInstruction())) {
 		handle_market_instruction(mi);
