@@ -1,7 +1,12 @@
+#ifndef __MARKET_INSTRUCTION__
+#define __MARKET_INSTRUCTION__
+
 #include <iostream>
 #include <string>
+#include <vector>
+#include <sstream> 
 
-using std::string;
+using namespace std;
 
 class MarketInstruction {
 public: 
@@ -19,4 +24,12 @@ public:
 	double new_price;	// new_price and new_quantity are valid only when type == Replace
 
 	friend std::ostream & operator<<(std::ostream & os, const MarketInstruction & mi);
+
+	// legacy function
+	void print() { cout << this;};
+
+	// constructor
+	MarketInstruction(string & line);
 };
+
+#endif
