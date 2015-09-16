@@ -12,71 +12,88 @@
 #include <map> 
 #include "MarketInstruction.h"
 #include "MarketInstructionIterator.h"
+#include "BinaryHeap.h"
+#include <iomanip>      // std::setprecision
 
-// using namespace std;
+using namespace std;
 
 // outputfile
 string outputfile_name = "/Users/rsnair2/Desktop/output.txt";
 ofstream outfile;
+ifstream correct_out;
 
-// highest priority is last elem
+// highest price has higher priority
 bool compareBuyOrders(MarketInstruction * left, MarketInstruction * right) {
 	if(left->price == right->price) 
-		return right->timestamp < left->timestamp;
-
-	return left->price < right->price;
-}
-
-bool compareSellOrders(MarketInstruction * left, MarketInstruction * right) {
-	if(left->price == right->price) 
-		return right->timestamp < left->timestamp;
+		return right->timestamp > left->timestamp;
 
 	return left->price > right->price;
 }
 
+// lower price has higher priority
+bool compareSellOrders(MarketInstruction * left, MarketInstruction * right) {
+	if(left->price == right->price) 
+		return right->timestamp > left->timestamp;
+
+	return left->price < right->price;
+}
+
 class OrderBook {
 public:
-	vector<MarketInstruction *> buyOrders;
-	vector<MarketInstruction *> sellOrders;
+	BinaryHeap<MarketInstruction *> * buyOrders;
+	BinaryHeap<MarketInstruction *> * sellOrders;
 
 	OrderBook() {
+		buyOrders = (new BinaryHeap<MarketInstruction *>(compareBuyOrders));
+		sellOrders = (new BinaryHeap<MarketInstruction *>(compareSellOrders));
 	}
 
-	void fill(unsigned int quantity, double price, unsigned int buyer, unsigned int seller, 
+	void fill(unsigned int quantity, double price, int buyer, int seller, 
 		string assetName) {
+
 		outfile << setprecision(10);
 		outfile << "FILL " << assetName << " " << buyer << " " << seller << " ";
 		outfile << quantity << " " << price << endl;
+
+		ostringstream s;
+		s << setprecision(10);
+		s << price;
+		string output_line = "FILL " + assetName + " " + to_string(buyer) + " " + to_string(seller) + " " + to_string(quantity) + " " + s.str();
+		string correct_line;
+		getline(correct_out, correct_line);
+
+		if(correct_line != output_line) {
+			cout << output_line << " " << correct_line << endl;
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	void add_order(MarketInstruction * mi) {
-		if(mi->type == MarketInstruction::Order) execute_new_order(mi);
+ 		if(mi->type == MarketInstruction::Order) execute_new_order(mi);
 		else if(mi->type == MarketInstruction::Cancel) execute_new_cancel_instruction(mi);
 		else if(mi->type == MarketInstruction::Replace) execute_new_replace_instruction(mi);
 	}
 
 	void execute_new_buy_order(MarketInstruction * mi) {
-		unsigned int index = sellOrders.size() -1;
-		while(true) {
-			if(index == -1) break;
+		MarketInstruction * mostImportantSellOrder = NULL;
+
+		while(sellOrders->size() > 0) {
 			if(mi->quantity == 0) break;
 
-			MarketInstruction * restingSellOrderWithHighestPriority = sellOrders[index];
+			mostImportantSellOrder = sellOrders->rootElem();
 
-			if(mi->price >= restingSellOrderWithHighestPriority->price) {
-				unsigned int quantity = min(mi->quantity, restingSellOrderWithHighestPriority->quantity);
+			if(mi->price >= mostImportantSellOrder->price) {
+				unsigned int quantity = min(mi->quantity, mostImportantSellOrder->quantity);
 
-				// execute!!!
 				mi->quantity -= quantity;
-				restingSellOrderWithHighestPriority->quantity -= quantity;
+				mostImportantSellOrder->quantity -= quantity;
 
-				double price = restingSellOrderWithHighestPriority->price;
+				double price = mostImportantSellOrder->price;
 
-				fill(quantity, price, mi->id, restingSellOrderWithHighestPriority->id, mi->targetAssetName);
+				fill(quantity, price, mi->id, mostImportantSellOrder->id, mi->targetAssetName);
 
-				if(restingSellOrderWithHighestPriority->quantity == 0) {
-					sellOrders.pop_back();
-					index = sellOrders.size() - 1;
+				if(mostImportantSellOrder->quantity == 0) {
+					sellOrders->deleteRootElem();
 				}
 			}
 			else {
@@ -90,31 +107,30 @@ public:
 	}
 
 	void execute_new_sell_order(MarketInstruction * mi) {
-		unsigned int index = buyOrders.size() -1;
-		while(true) {
-			if(index == -1) break;
+		MarketInstruction * mostImportantBuyOrder = NULL;
+
+		while(buyOrders->size() > 0) {
 			if(mi->quantity == 0) break;
 
-			MarketInstruction * restingBuyOrderWithHighestPriority = buyOrders[index];
+			mostImportantBuyOrder = buyOrders->rootElem();
 
-			if(mi->price <= restingBuyOrderWithHighestPriority->price) {
-				unsigned int quantity = min(mi->quantity, restingBuyOrderWithHighestPriority->quantity);
+			if(mi->price <= mostImportantBuyOrder->price) {
 
-				// execute!!!
+				unsigned int quantity = min(mi->quantity, mostImportantBuyOrder->quantity);
+
 				mi->quantity -= quantity;
-				restingBuyOrderWithHighestPriority->quantity -= quantity;
+				mostImportantBuyOrder->quantity -= quantity;
 
-				double price = restingBuyOrderWithHighestPriority->price;
-				fill(quantity, price, restingBuyOrderWithHighestPriority->id, mi->id, mi->targetAssetName);
+				double price = mostImportantBuyOrder->price;
 
-				if(restingBuyOrderWithHighestPriority->quantity == 0) {
-					buyOrders.pop_back();
-					index = buyOrders.size() - 1;
+				fill(quantity, price, mostImportantBuyOrder->id, mi->id, mi->targetAssetName);
+
+				if(mostImportantBuyOrder->quantity == 0) {
+					buyOrders->deleteRootElem();
 				}
 			}
-			else {
+			else 
 				break;
-			}
 		}
 
 		if(mi->quantity > 0) {
@@ -122,7 +138,6 @@ public:
 		}
 	}
 
-	// handles buy/sell orders only
 	void execute_new_order(MarketInstruction * mi) {
 		if(mi->type != MarketInstruction::Order) return;
 
@@ -137,67 +152,64 @@ public:
 	void rest_order(MarketInstruction * mi) {
 		if(mi->type == MarketInstruction::Order) {
 			if(mi->typeOfOrder == MarketInstruction::Sell) {
-				sellOrders.push_back(mi);
+				sellOrders->insert(mi, mi->id);
 			}
 			else if(mi->typeOfOrder == MarketInstruction::Buy) {
-				buyOrders.push_back(mi);
+				buyOrders->insert(mi, mi->id);
 			}
-		}
-
-		// sort the lists
-		if(mi->typeOfOrder == MarketInstruction::Sell) {
-			sort(sellOrders.begin(), sellOrders.end(), compareSellOrders);
-		}
-		else if(mi->typeOfOrder == MarketInstruction::Buy) {
-			sort(buyOrders.begin(), buyOrders.end(), compareBuyOrders);
 		}
 	}
 
 	void execute_new_cancel_instruction(MarketInstruction * mi) {
-		vector<MarketInstruction *> & restingOrders = mi->typeOfOrder == MarketInstruction::Buy ? buyOrders : sellOrders;
-
-		for(unsigned int i = 0; i < restingOrders.size(); i++) {
-			MarketInstruction * restingOrder = restingOrders[i];
-			if(restingOrder->id == mi->id) {
-				restingOrders.erase(restingOrders.begin() + i);
-			}
+		if(mi->typeOfOrder == MarketInstruction::Buy) {
+			buyOrders->deleteElemWithId(mi->id);
+		}
+		else {
+			sellOrders->deleteElemWithId(mi->id);
 		}
 	}
 
 	void execute_new_replace_instruction(MarketInstruction * mi) {
-		vector<MarketInstruction *> & restingOrders = mi->typeOfOrder == MarketInstruction::Buy ? buyOrders : sellOrders;
+		BinaryHeap<MarketInstruction *> * restingOrders = mi->typeOfOrder == MarketInstruction::Buy ? buyOrders : sellOrders;
+		MarketInstruction * old = (*restingOrders)[mi->id];
+		if(old == NULL) return;
+		old->price = mi->new_price;
+		old->quantity = mi->new_quantity;
 
-		if(mi->new_quantity == 0) execute_new_cancel_instruction(mi);
-
-		for(unsigned int i = 0; i < restingOrders.size(); i++) {
-			MarketInstruction * restingOrder = restingOrders[i];
-			if(restingOrder->id == mi->id) {
-				if(mi->price == mi->new_price && mi->new_quantity < mi->quantity) {
-					if(restingOrder->quantity < mi->new_quantity) return;
-					restingOrder->quantity = mi->new_quantity;
-					break;
-				}
-				else if(mi->price != mi->new_price || mi->new_quantity > mi->quantity) {
-					mi->type = MarketInstruction::Order;
-					mi->quantity = (restingOrder->quantity) + (mi->new_quantity - mi->quantity);
-					mi->price = mi->new_price;
-					execute_new_cancel_instruction(mi);
-					execute_new_order(mi);
-					break;
-				}
-			}
+		if(mi->quantity < mi->new_quantity || mi->price != mi->new_price)
+			old->timestamp = mi->timestamp;
+		else {
+			return;
 		}
+		
+		execute_new_cancel_instruction(mi);
+		add_order(old);
 	}
 
 	void print() {
-		for(vector<MarketInstruction *>::iterator it = buyOrders.begin(); it != buyOrders.end(); ++it) {
-			(*it)->print();
+		cout << "BUY" << endl;
+		vector<MarketInstruction *> buyOrdersCopy;
+		vector<MarketInstruction *> sellOrdersCopy;
+
+		while(buyOrders->size() > 0) {
+			cout << *(buyOrders->rootElem());
+			buyOrdersCopy.push_back(buyOrders->rootElem());
+			buyOrders->deleteRootElem();
 		}
-		cout << "~~~" << endl;
-		for(vector<MarketInstruction *>::iterator it = sellOrders.begin(); it != sellOrders.end(); ++it) {
-			(*it)->print();
-		}	
-		cout << "---" << endl;
+		for(int i = 0; i < buyOrdersCopy.size(); i++) {
+			buyOrders->insert(buyOrdersCopy[i], buyOrdersCopy[i]->id);
+		}
+		cout << endl << endl;
+		cout << "SELL" << endl;
+		while(sellOrders->size() > 0) {
+			cout << *(sellOrders->rootElem());
+			sellOrdersCopy.push_back(sellOrders->rootElem());
+			sellOrders->deleteRootElem();
+		}
+		for(int i = 0; i < sellOrdersCopy.size(); i++) {
+			sellOrders->insert(sellOrdersCopy[i], sellOrdersCopy[i]->id);
+		}
+		cout << endl;
 	}
 };
 
@@ -208,38 +220,13 @@ void handle_market_instruction(MarketInstruction * mi) {
 	assetNameToOrderBookMap[assetTarget].add_order(mi);
 }
 
-// int main(int argc, char *argv[])
-// {
-// 	string filename = string("../../data/small_orders.txt");
-	
-// 	/*
-// 	// multithreaded solution
-// 	// // start thread to read input here
-// 	// pthread_t input_thread;
-// 	// void * input_thread_payload;
-//  	//   	void * status;
-
-//    	// input_thread_payload = static_cast<void*>(&filename);
-// 	// pthread_create(&input_thread, NULL, readInputFile, input_thread_payload);
-// 	// pthread_join(input_thread, &status);
-// 	*/
-
-//    	// single threaded solution
-// 	void * input_thread_payload;
-//    	input_thread_payload = static_cast<void*>(&filename);
-// 	readInputFile(input_thread_payload);
-// 	outfile.open(outputfile_name.c_str());
-// 	handle_market_instruction_queue();
-// }
-
-
-using namespace std;
-
 int main(int argc, char * argv[]) {
 	outfile.open(outputfile_name);
+	correct_out.open("/Users/rsnair2/Studio/MatchingEngine/data/fills.txt");
 	MarketInstructionIterator mii(argv[1]);
 	MarketInstruction * mi;
 	while((mi = mii.getNextInstruction())) {
+		// cout << *mi << endl;
 		handle_market_instruction(mi);
 	}
 }
