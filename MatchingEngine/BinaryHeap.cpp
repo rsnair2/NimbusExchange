@@ -1,4 +1,5 @@
 #include "BinaryHeap.h"
+#include "MarketInstruction.h"
 
 // compute children/parent index related
 template <typename T>
@@ -90,7 +91,7 @@ void BinaryHeap<T>::insert(T elem, int id) {
 
 template <typename T>
 T BinaryHeap<T>::rootElem() {
-	return heap[0]->payload;
+	return heap.size() > 0 ? heap[0]->payload : NULL;
 }
 
 template <typename T>
@@ -104,7 +105,10 @@ void BinaryHeap<T>::deleteRootElem() {
 }
 
 template <typename T>
-T & BinaryHeap<T>::operator[](int i) {
+T BinaryHeap<T>::operator[](int i) {
+	map<int,int>::iterator it;
+	it = idToIndexMap.find(i);
+	if(it == idToIndexMap.end()) return NULL;
 	int idx = idToIndexMap[i];
 	return heap[idx]->payload;
 }
@@ -126,14 +130,20 @@ void BinaryHeap<T>::fixTreeAtElemWithId(int id) {
 
 template <typename T>
 void BinaryHeap<T>::deleteElemWithId(int id) {
+	map<int,int>::iterator it;
+	it = idToIndexMap.find(id);
+	if(it == idToIndexMap.end()) return;
+
 	int idx = idToIndexMap[id];
 	swap(idx, heap.size() - 1);
 	BinaryHeapNode * prevHeapNode = heap[heap.size() - 1];
 	heap.pop_back();
 	idToIndexMap.erase(prevHeapNode->id);
 	free(prevHeapNode);
+	if(idx == heap.size()) return;
 	heapifyDown(idx);
+	heapifyUp(idx);
 }
 
-template class BinaryHeap<int>;
-
+template class BinaryHeap<MarketInstruction *>;
+// template class BinaryHeap<int>;

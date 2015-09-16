@@ -2,6 +2,7 @@
 #include <vector>
 #include <map>
 
+
 using namespace std;
 
 template <typename T>
@@ -12,13 +13,11 @@ private:
 	class BinaryHeapNode {
 	public:
 		T payload;
-		// bool isRemoved;
 		int id;
 
-		BinaryHeapNode(T & payload, int id) {
+		BinaryHeapNode(T payload, int id) {
 			this->id = id;
 			this->payload = payload;
-			// this->isRemoved = false;
 		}
 
 		friend ostream & operator<<(ostream & os, const BinaryHeapNode & node) {
@@ -34,9 +33,8 @@ private:
 	vector<BinaryHeapNode *> heap;
 	void swap(int idx1, int idx2);
 	map<int, int> idToIndexMap;
-	bool (*compare)(T, T);
-
-
+	bool (*compare)(T, T);	// need to return true if a is more important than b
+	
 public:
 	T rootElem();
 	void insert(T elem, int id); // unique id is needed for every node if you want to use modifyElemWithId feature
@@ -46,14 +44,14 @@ public:
 	void fixTreeAtElemWithId(int id);
 	void deleteElemWithId(int id);
 
-	T & operator[](int i);
+	T operator[](int i);
 
 	friend ostream & operator<<(ostream & os, const BinaryHeap & heap) {
 		int numberOfElementsAtLevel = 1;
 		int counter = 0;
 
 		for(int i = 0; i < heap.heap.size(); i++) {
-			os << heap.heap[i]->payload;
+			os << *(heap.heap[i]->payload);
 			os << " ";
 			counter++;
 			if(counter == numberOfElementsAtLevel) {
