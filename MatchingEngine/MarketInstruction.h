@@ -26,7 +26,7 @@ public:
 	friend std::ostream & operator<<(std::ostream & os, const MarketInstruction & mi);
 
 	// legacy function
-	void print() { cout << this;};
+	void print() { cout << this; };
 
 	// constructor
 	MarketInstruction(string & line);
