@@ -120,39 +120,25 @@ void OrderBook::fill_order(MarketInstruction * one, MarketInstruction * two) {
 	
 	double price = one->timestamp < two->timestamp ? one->price : two->price;	// take the older one's timestamp
 
-	unsigned int buyer = one->typeOfOrder == MarketInstruction::Buy ? one->id : two->id;
-	unsigned int seller = one->typeOfOrder == MarketInstruction::Sell ? one->id : two->id;
+	unsigned long long buyer = one->typeOfOrder == MarketInstruction::Buy ? one->id : two->id;
+	unsigned long long seller = one->typeOfOrder == MarketInstruction::Sell ? one->id : two->id;
 
 	string assetName = one->targetAssetName;
 
 	unsigned int latestTimeStamp = one->timestamp > two->timestamp ? one->timestamp : two->timestamp;
+	unsigned int otherTimeStamp = localTime++;
 
-	// of->fillOrder(assetName, buyer, seller, quantity, price, latestTimeStamp);
-
-	// outfile << setprecision(10);
-	// outfile << "FILL " << assetName << " " << buyer << " " << seller << " ";
-	// outfile << quantity << " " << price << endl;
-
-	// ostringstream s;
-	// s << setprecision(10);
-	// s << price;
-	// string output_line = "FILL " + assetName + " " + to_string(buyer) + " " + to_string(seller) + " " + to_string(quantity) + " " + s.str();
-	// string correct_line;
-	// getline(correct_out, correct_line);
-
-	// if(correct_line != output_line) {
-	// 	cout << output_line << " " << correct_line << endl;
-	// 	exit(EXIT_FAILURE);
-	// }
+	fillOrderHandler(assetName, buyer, seller, quantity, price, latestTimeStamp, otherTimeStamp);
 }
 
-OrderBook::OrderBook() {
+OrderBook::OrderBook(void (*fillOrderHandler)(string, unsigned long long, unsigned long long, unsigned int, double, unsigned int, unsigned int)) {
 	buyOrders = (new BinaryHeap<MarketInstruction *>(compareBuyOrders));
 	sellOrders = (new BinaryHeap<MarketInstruction *>(compareSellOrders));
+	this->fillOrderHandler = fillOrderHandler;
+	localTime = 0;
 }
 
 void OrderBook::add_order(MarketInstruction * mi) {
-	of->completedOrderWithTimestamp(mi->timestamp);
 	if(mi->type == MarketInstruction::Order) execute_new_order(mi);
 	else if(mi->type == MarketInstruction::Cancel) execute_new_cancel_instruction(mi);
 	else if(mi->type == MarketInstruction::Replace) execute_new_replace_instruction(mi);

@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <sstream> 
+#include <sstream>
 
 using namespace std;
 
@@ -14,7 +14,7 @@ public:
 	enum TypeOfOrder {Buy, Sell};
 
 	TypeOfInstruction type;
-	unsigned int id;	
+	unsigned long long id;	
 	unsigned int timestamp; 
 	string targetAssetName; // a.k.a SYMBOL
 	TypeOfOrder typeOfOrder; 

@@ -7,9 +7,12 @@
 class OrderBook {
 public:
 	void add_order(MarketInstruction * mi);
-	OrderBook();
+	OrderBook(void (*fillOrderHandler)(string, unsigned long long, unsigned long long, unsigned int, double, unsigned int, unsigned int));
+	OrderBook() {};
 
 private:
+	unsigned int localTime;
+
 	BinaryHeap<MarketInstruction *> * buyOrders;
 	BinaryHeap<MarketInstruction *> * sellOrders;
 
@@ -23,6 +26,8 @@ private:
 	void execute_new_cancel_instruction(MarketInstruction * mi);
 	void execute_new_replace_instruction(MarketInstruction * mi);
 	void fill_order(MarketInstruction * one, MarketInstruction * two);
+
+	void (*fillOrderHandler)(string, unsigned long long, unsigned long long, unsigned int, double, unsigned int, unsigned int);
 };
 
 #endif
