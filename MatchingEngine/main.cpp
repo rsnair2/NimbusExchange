@@ -19,13 +19,8 @@
 
 using namespace std;
 
-#define MAX_NUMBER_OF_THREADS 1
-
 // outputfile
-string outputfile_name = "/Users/rsnair2/Studio/MatchingEngine/data/output.txt";
 ofstream outfile;
-ifstream correct_out;
-ifstream output_test;
 
 map<string, OrderBook> assetNameToOrderBookMap;
 map<string, mutex> assetNameToOrderBookMutex;
@@ -33,7 +28,6 @@ map<string, mutex> assetNameToOrderBookMutex;
 map< string, queue<MarketInstruction *> > orderQueue;
 mutex orderQueueMutex;
 
-// used for round robin scheduling
 vector<string> assetsInQueue;
 mutex assetsInQueueMutex;
 
@@ -43,32 +37,11 @@ mutex stateMutex;
 
 vector<thread> threadsActive;
 
-mutex printMutex;
-
 int logFill(string assetName, unsigned long long buyer, unsigned long long seller, 
 	unsigned int quantity, double price) {
 
-	outfile << setprecision(10);
 	outfile << "FILL " << assetName << " " << buyer << " " << seller << " ";
 	outfile << quantity << " " << price << endl;
-
-	ostringstream s;
-	s << setprecision(10);
-	s << price;
-	string output_line = "FILL " + assetName + " " + to_string(buyer) + " " + to_string(seller) + " " + to_string(quantity) + " " + s.str() + "\r";
-	string correct_line;
-	getline(correct_out, correct_line);
-
-	printMutex.lock();
-	cout << output_line << endl;
-	printMutex.unlock();
-
-	if(correct_line.substr(0, correct_line.size()) != output_line) {
-		printMutex.lock();
-		cout << output_line << " " << correct_line << endl;
-		printMutex.unlock();
-		exit(EXIT_FAILURE);
-	}
 	
 	return 0;
 }
@@ -161,20 +134,36 @@ void fetchInstructions(const char * filename) {
 }
 
 int main(int argc, char * argv[]) {
-	outfile.open(outputfile_name);
-	correct_out.open("/Users/rsnair2/Studio/MatchingEngine/data/fills.txt");
+	if(argc != 4) {
+		cout << "Usage: ./NumbusExchange <input-file> <output-file> <numberOfThreads>" << endl;
+		return 1;
+	}
+
+	string input_filename = string(argv[1]);
+	string output_filename = string(argv[2]);
+
+	outfile.open(output_filename);
+
+	if(!outfile.is_open()) {
+		cout << "Could not open output file. Exiting..." << endl;
+		return 1;
+	}
+
+	outfile << setprecision(10);
+
+	int maxThreads = stoi(argv[3]);
 
 	state = Reading;
 
 	of.run();
 	thread td = thread(fetchInstructions, argv[1]);
 
-	for(int i = 0; i < MAX_NUMBER_OF_THREADS; i++) {
+	for(int i = 0; i < maxThreads; i++) {
 		threadsActive.push_back(thread(handle_market_instruction, i));
 	}
 
 	td.join();
-	for(int i = 0; i < MAX_NUMBER_OF_THREADS; i++) {
+	for(int i = 0; i < maxThreads; i++) {
 		threadsActive[i].join();
 	}
 }
