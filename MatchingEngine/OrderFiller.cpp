@@ -36,6 +36,8 @@ void OrderFiller::run() {
 void OrderFiller::flush() {
 	while(filledOrders.size() > 0) {
 		FilledOrder fo = filledOrders.top();
+		if(fo.latestTimeStamp >= minCompletedOrder)
+			return;
 		fill_order_handler(fo.assetName, fo.buyer, fo.seller, fo.quantity, fo.price);
 		filledOrders.pop();
 	}
