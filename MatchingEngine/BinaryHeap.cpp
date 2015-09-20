@@ -30,7 +30,6 @@ void BinaryHeap<T>::swap(int idx1, int idx2) {
 	idToIndexMap[heap[idx2]->id] = idx2;
 }
 
-
 // heapify related
 template <typename T>
 void BinaryHeap<T>::heapifyUp(int nodeIndex) {
@@ -119,7 +118,6 @@ void BinaryHeap<T>::replaceElemWithId(int id, T newElem) {
 	heap[idx]->payload = newElem;
 	fixTreeAtElemWithId(id);
 }
-
 
 template <typename T>
 void BinaryHeap<T>::fixTreeAtElemWithId(int id) {
