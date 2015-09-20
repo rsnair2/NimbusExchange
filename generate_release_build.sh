@@ -1,3 +1,4 @@
+#!/bin/bash
 bash -c '[ -d build ] && rm -rf build'
 mkdir build
 cd build
